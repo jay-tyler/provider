@@ -10,6 +10,7 @@ class ProviderFactory:
              self.provider = provider
 
          def __getattr__(self, attr):
+             # TODO prevent provider chaining
              provider = getattr(self.provider_factory, attr)
              return ProviderFactory.provide(self.provider_factory, provider=provider)
 
@@ -18,6 +19,7 @@ class ProviderFactory:
              def inner(*args, **kwargs):
                  sig = signature(fct)
                  assert sig.parameters.get(self.provider.__name__) is not None
+                 # TODO partial is arg order dependent, might want something more flexible
                  return functools.partial(fct, self.provider())(*args, **kwargs)
              return inner
 
