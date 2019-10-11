@@ -6,6 +6,11 @@ from inspect import signature
 class ProviderFactory:
     class provide:
          def __init__(self, provider_factory, provider=None):
+             """
+
+             :param provider_factory:
+             :param provider:
+             """
              self.provider_factory = provider_factory
              self.provider = provider
 
@@ -14,10 +19,17 @@ class ProviderFactory:
              return ProviderFactory.provide(self.provider_factory, provider=provider)
 
          def __call__(self, fct):
+             sig = signature(fct)
+             is_missing_arg = sig.parameters.get(self.provider.__name__) is None
+             if is_missing_arg:
+                 raise LookupError(
+                     "no arg/kwarg of name '{}' found for fct '{}'".format(
+                         self.provider.__name__,
+                         fct.__name__,
+                     )
+                 )
              @functools.wraps(fct)
              def inner(*args, **kwargs):
-                 sig = signature(fct)
-                 assert sig.parameters.get(self.provider.__name__) is not None
                  return functools.partial(fct, self.provider())(*args, **kwargs)
              return inner
 
@@ -60,9 +72,33 @@ if __name__ == "__main__":
         return 42
 
 
+    @hug.provider()
+    def i_provide_too():
+        return 42 + 1
+
+
     @hug.provide.i_provide
     def i_have_provider(i_provide):
         return i_provide
 
 
     print(i_have_provider())
+
+
+    @hug.provide.i_provide
+    @hug.provide.i_provide_too
+    def i_have_providers(i_provide=1, i_provide_too=2, not_provided=3):
+        return i_provide + i_provide_too
+
+
+    print(i_have_providers())
+
+
+    @hug.provide.i_provide
+    @hug.provider
+    def i_provide():
+        
+
+
+    # TODO implement
+    # hug.assert_all_nullary_callables()

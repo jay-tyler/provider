@@ -1,25 +1,70 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Tests for `provider` package."""
-
 import pytest
-
-
-from provider import provider
+import provider.provider
 
 
 @pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
+def provider_factory():
+    return provider.provider.ProviderFactory()
 
 
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+@pytest.fixture
+def provider1(provider_factory):
+    @provider_factory.provider()
+    def provider1():
+        return 42
+    return provider1
+
+
+@pytest.fixture
+def provided1(provider_factory, provider1):
+    @provider_factory.provide.provider1
+    def provided1(provider1):
+        return provider1
+    return provided1
+
+
+def test_provider1_instantiation(provider1):
+    assert provider1
+
+
+def test_provided1_instantiations(provided1):
+    assert provided1
+
+
+def test_provided1_call(provided1):
+    assert provided1() == 42
+
+
+def test_provided_missing_provider(provider_factory):
+    with pytest.raises(AttributeError) as excinfo:
+        @provider_factory.provide.provider1
+        def provided1(provider1):
+            return provider1
+    assert "no provider named 'provider1'" in str(excinfo.value)
+
+
+def test_provided_missing_arg(provider_factory, provider1):
+    with pytest.raises(LookupError) as excinfo:
+        @provider_factory.provide.provider1
+        def provided1():
+            return provider1
+    assert "no arg/kwarg of name 'provider1' found for fct 'provided1'" in str(excinfo.value)
+
+
+def test_provided_misnamed_arg(provider_factory, provider1):
+    with pytest.raises(LookupError) as excinfo:
+        @provider_factory.provide.provider1
+        def provided1(not_the_right_arg):
+            return provider1
+    assert "no arg/kwarg of name 'provider1' found for fct 'provided1'" in str(excinfo.value)
+
+
+def test_no_nullary_callable_hook(provider_factory, provider1):
+    @provider_factory.provide.provider1
+    def provided1(provider1, not_a_known_arg):
+        return provider1
+
+
