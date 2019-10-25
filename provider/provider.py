@@ -1,7 +1,8 @@
 from collections import ChainMap
 import functools
-from inspect import signature
+from inspect import signature, Parameter
 
+class RuntimeProvided: pass
 
 class ProviderFactory:
     class provide:
@@ -20,10 +21,10 @@ class ProviderFactory:
 
          def __call__(self, fct):
              sig = signature(fct)
-             is_missing_arg = sig.parameters.get(self.provider.__name__) is None
-             if is_missing_arg:
+             is_missing_expected_arg = sig.parameters.get(self.provider.__name__) is None
+             if is_missing_expected_arg:
                  raise LookupError(
-                     "no arg/kwarg of name '{}' found for fct '{}'".format(
+                     "expected arg/kwarg of name '{}' in fct '{}'".format(
                          self.provider.__name__,
                          fct.__name__,
                      )
@@ -31,11 +32,25 @@ class ProviderFactory:
              @functools.wraps(fct)
              def inner(*args, **kwargs):
                  return functools.partial(fct, self.provider())(*args, **kwargs)
-             return inner
 
+             # TODO: stuff this bit into a function
+             bound_param = Parameter(name=self.provider.__name__,
+                           kind=Parameter.POSITIONAL_OR_KEYWORD,
+                           default=RuntimeProvided())
+             other_params = (
+                 param for param in signature(fct).parameters.values()
+                 if param.name != self.provider.__name__
+             )
+             sig = signature(fct).replace(parameters=[*other_params, bound_param])
+             inner.__signature__ = sig
+
+             self.provider_factory.providees[inner.__name__] = inner
+
+             return inner
 
     def __init__(self):
         self.providers = {}
+        self.providees = {}
         self.provide = ProviderFactory.provide(self)
 
     def __getattr__(self, attr):
@@ -55,12 +70,51 @@ class ProviderFactory:
             self.register_provider(fct)
             # TODO ensure callable is nullary here
             # TODO ensure callable has connascence with fct sig
+
             @functools.wraps(fct)
             def inner(*args, **kwargs):
                 return fct(*args, **kwargs)
 
             return inner
         return outer
+
+    def assert_all_nullary_callables(self):
+        """
+        Assert all of the providees have fully bound args
+
+        Note that providee functions must be accessible in this namespace
+
+        Whether this is necessary will be dependent on context, but if this is what you need in your library,
+        this is your hook
+
+        Raises RuntimeError in case of callables not being fully bound.
+
+        :return:
+        """
+        # for fct_name, provider in self.providers.items()
+        # TODO this requires fct_names be accessible in this context
+        for fct_name, fct in self.providees.items():
+            assert_nullary_callable(fct)
+
+
+
+def assert_nullary_callable(fct):
+    sig = signature(fct)
+    for param in sig.parameters.values():
+        if param.kind == Parameter.POSITIONAL_OR_KEYWORD:
+            if param.default is not Parameter.empty:
+                print(param.default)
+                print()
+                continue
+            # else continue to exception
+        else:
+            # VAR_POSITION or VAR_KEYWORD, both optional
+            continue
+        raise RuntimeError(
+            "'{}' requires {} param; not a nullary callable".format(
+                fct.__name__, param.name
+            )
+        )
 
 
 if __name__ == "__main__":
@@ -81,23 +135,17 @@ if __name__ == "__main__":
     def i_have_provider(i_provide):
         return i_provide
 
-
     print(i_have_provider())
-
 
     @hug.provide.i_provide
     @hug.provide.i_provide_too
-    def i_have_providers(i_provide=1, i_provide_too=2, not_provided=3):
+    def i_have_providers(i_provide, i_provide_too, not_provided=3):
         return i_provide + i_provide_too
 
 
     print(i_have_providers())
 
 
-    @hug.provide.i_provide
-    @hug.provider
-    def i_provide():
-        
 
 
     # TODO implement
