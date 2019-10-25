@@ -16,6 +16,7 @@ class ProviderFactory:
              self.provider = provider
 
          def __getattr__(self, attr):
+             # TODO prevent provider chaining
              provider = getattr(self.provider_factory, attr)
              return ProviderFactory.provide(self.provider_factory, provider=provider)
 
@@ -103,15 +104,13 @@ def assert_nullary_callable(fct):
     for param in sig.parameters.values():
         if param.kind == Parameter.POSITIONAL_OR_KEYWORD:
             if param.default is not Parameter.empty:
-                print(param.default)
-                print()
                 continue
             # else continue to exception
         else:
             # VAR_POSITION or VAR_KEYWORD, both optional
             continue
         raise RuntimeError(
-            "'{}' requires {} param; not a nullary callable".format(
+            "'{}' requires '{}' param; not a nullary callable".format(
                 fct.__name__, param.name
             )
         )
@@ -150,3 +149,4 @@ if __name__ == "__main__":
 
     # TODO implement
     # hug.assert_all_nullary_callables()
+    print(i_have_provider())
