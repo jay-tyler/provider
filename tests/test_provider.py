@@ -51,7 +51,7 @@ def test_provided_missing_arg(provider_factory, provider1):
         @provider_factory.provide.provider1
         def provided1():
             return provider1
-    assert "no arg/kwarg of name 'provider1' found for fct 'provided1'" in str(excinfo.value)
+    assert "expected arg/kwarg of name 'provider1' in fct 'provided1'" in str(excinfo.value)
 
 
 def test_provided_misnamed_arg(provider_factory, provider1):
@@ -59,7 +59,7 @@ def test_provided_misnamed_arg(provider_factory, provider1):
         @provider_factory.provide.provider1
         def provided1(not_the_right_arg):
             return provider1
-    assert "no arg/kwarg of name 'provider1' found for fct 'provided1'" in str(excinfo.value)
+    assert "expected arg/kwarg of name 'provider1' in fct 'provided1'" in str(excinfo.value)
 
 
 def test_no_nullary_callable_hook(provider_factory, provider1):
